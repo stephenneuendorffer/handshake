@@ -472,9 +472,40 @@ void executeFunction(mlir::FuncOp &toplevel,
         resultTimes[i] = timeMap[Op.getOperand(i)];
       }
       return;
-    } else if (auto Op = dyn_cast<mlir::CallOp>(op)) {
+    } else if (auto Op = dyn_cast<mlir::CallOpInterface>(op)) {
       // implement function calls.
-      assert(false && "Function Calls unimplemented");
+      mlir::Operation *calledOp = Op.resolveCallable();
+      if (auto funcOp = dyn_cast<mlir::FuncOp>(calledOp)) {
+        mlir::FunctionType ftype = funcOp.getType();
+        unsigned inputs = ftype.getNumInputs();
+        unsigned outputs = ftype.getNumResults();
+        DenseMap<mlir::Value , Any> newValueMap;
+        DenseMap<mlir::Value , double> newTimeMap;
+        std::vector<Any> results(outputs);
+        std::vector<double> resultTimes(outputs);
+        std::vector<std::vector<Any>> store;
+        std::vector<double> storeTimes;
+        mlir::Block &entryBlock = funcOp.getBody().front();
+        mlir::Block::BlockArgListType blockArgs = entryBlock.getArguments();
+
+        for (unsigned i = 0; i < inputs; i++) {
+          newValueMap[blockArgs[i]] = inValues[i];
+          newTimeMap[blockArgs[i]] = timeMap[op.getOperand(i)];
+        }
+        executeFunction(funcOp, newValueMap, newTimeMap,
+                        results, resultTimes,
+                        store, storeTimes);
+        i = 0;
+        for (mlir::Value out : op.getResults()) {
+          valueMap[out] = results[i];
+          timeMap[out] = resultTimes[i];
+          i++;
+        }
+        instIter++;
+        continue;
+      } else {
+        llvm_unreachable("Callable was not a Function!\n");
+      }
     } else {
       llvm_unreachable("Unknown operation!\n");
     }

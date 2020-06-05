@@ -1,4 +1,4 @@
-// BROKEN: handshake-runner %s | FileCheck %s
+// RUN: handshake-runner %s | FileCheck %s
 // BROKEN: handshake-opt -create-dataflow %s | handshake-runner | FileCheck %s
 // CHECK: 763 2996
 module {
